@@ -1,4 +1,4 @@
-```markdown
+````markdown
 # Processamento de Transações Bancárias — COBOL MVS
 
 Programa COBOL rodando no **MVS 3.8j (TK5)**.
@@ -34,13 +34,11 @@ Lê arquivos de clientes e transações bancárias, realiza MATCH/MERGE e aplica
 
 ## ⚙️ Funcionamento
 
-```
 1. SORT ordena CLIENTES e TRX por ID
 2. MATCH/MERGE compara os dois arquivos
 3. Para cada match: aplica crédito (C) ou débito (D) no saldo
 4. Sem match: grava cliente sem transação ou registra erro
 5. Exibe estatísticas ao final
-```
 
 **Validações implementadas:**
 - Tipo de transação inválido (≠ C ou D)
@@ -49,7 +47,7 @@ Lê arquivos de clientes e transações bancárias, realiza MATCH/MERGE e aplica
 
 ---
 
-## Resultado
+## ✅ Resultado
 
 ```
 CLIENTES PROCESSADOS.....: 000003
@@ -58,11 +56,12 @@ CREDITOS PROCESSADOS.....: 000001
 DEBITOS PROCESSADOS......: 000002
 ERROS ENCONTRADOS........: 000000
 FIM DO PROCESSAMENTO
-
-
 ```
 
+---
 
 ## Autora
-**Milena Costa** 
-```
+**Milena Costa**
+
+**Milena Costa** — Curso COBOL Mainframe MVS 3.8j
+``` `
