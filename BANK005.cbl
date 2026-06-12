@@ -1,0 +1,182 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. BANK005.
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT ARQ-CLIENTES  ASSIGN TO UT-S-CLIENTES.
+           SELECT ARQ-TRX       ASSIGN TO UT-S-TRX.
+           SELECT ARQ-SAIDA     ASSIGN TO UT-S-SAIDACLI.
+           SELECT ARQ-ERROS     ASSIGN TO UT-S-ERROS.
+       DATA DIVISION.
+       FILE SECTION.
+       FD  ARQ-CLIENTES
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORDS ARE STANDARD.
+       01  REG-CLIENTE.
+           05 CLI-ID    PIC 9(05).
+           05 CLI-NOME  PIC X(30).
+           05 CLI-SALDO PIC 9(09).
+       FD  ARQ-TRX
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORDS ARE STANDARD.
+       01  REG-TRX.
+           05 TRX-CLI-ID  PIC 9(05).
+           05 TRX-ID      PIC 9(05).
+           05 TRX-TIPO    PIC X(01).
+           05 TRX-VALOR   PIC 9(09).
+       FD  ARQ-SAIDA
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORDS ARE STANDARD.
+       01  REG-SAIDA.
+           05 SAI-ID    PIC 9(05).
+           05 SAI-NOME  PIC X(30).
+           05 SAI-SALDO PIC 9(09).
+       FD  ARQ-ERROS
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORDS ARE STANDARD.
+       01  REG-ERRO      PIC X(50).
+       WORKING-STORAGE SECTION.
+       01  WS-FLAGS.
+           05 WS-FIM-CLI    PIC X(01) VALUE 'N'.
+           05 WS-FIM-TRX    PIC X(01) VALUE 'N'.
+       01  WS-QTD-CLI    PIC 9(06) VALUE ZEROS.
+       01  WS-QTD-TRX    PIC 9(06) VALUE ZEROS.
+       01  WS-QTD-CRE    PIC 9(06) VALUE ZEROS.
+       01  WS-QTD-DEB    PIC 9(06) VALUE ZEROS.
+       01  WS-QTD-ERR    PIC 9(06) VALUE ZEROS.
+       01  WS-TOT-CRE    PIC 9(09) VALUE ZEROS.
+       01  WS-TOT-DEB    PIC 9(09) VALUE ZEROS.
+       01  WS-ERRO-MSG   PIC X(50) VALUE SPACES.
+       01  WS-SALDO-AUX  PIC 9(09) VALUE ZEROS.
+       01  WS-ID-EDIT    PIC 9(05) VALUE ZEROS.
+       PROCEDURE DIVISION.
+       0000-PRINCIPAL SECTION.
+       0000-INICIO.
+           DISPLAY 'INICIANDO PROGRAM'.
+           PERFORM 1000-INICIAR THRU 1000-FIM.
+           PERFORM 2000-PROCESSAR THRU 2000-FIM
+               UNTIL WS-FIM-CLI = 'S' AND WS-FIM-TRX = 'S'.
+           PERFORM 3000-ENCERRAR THRU 3000-FIM.
+           STOP RUN.
+       0000-FIM. EXIT.
+       1000-INICIAR SECTION.
+       1000-INICIO.
+           OPEN INPUT  ARQ-CLIENTES.
+           OPEN INPUT  ARQ-TRX.
+           OPEN OUTPUT ARQ-SAIDA.
+           OPEN OUTPUT ARQ-ERROS.
+           DISPLAY 'LENDO CLIENTES'.
+           READ ARQ-CLIENTES
+               AT END MOVE 'S' TO WS-FIM-CLI.
+           READ ARQ-TRX
+               AT END MOVE 'S' TO WS-FIM-TRX.
+       1000-FIM. EXIT.
+       2000-PROCESSAR SECTION.
+       2000-INICIO.
+           IF WS-FIM-CLI = 'S' AND WS-FIM-TRX = 'N'
+               PERFORM 2300-TRX-SEM-CLIENTE THRU 2300-FIM.
+           IF WS-FIM-TRX = 'S' AND WS-FIM-CLI = 'N'
+               PERFORM 2200-CLI-SEM-TRX THRU 2200-FIM.
+           IF WS-FIM-CLI = 'N' AND WS-FIM-TRX = 'N'
+               IF CLI-ID = TRX-CLI-ID
+                   PERFORM 2100-PROCESSA-TRX THRU 2100-FIM
+               ELSE IF CLI-ID < TRX-CLI-ID
+                   PERFORM 2200-CLI-SEM-TRX THRU 2200-FIM
+               ELSE
+                   PERFORM 2300-TRX-SEM-CLIENTE THRU 2300-FIM.
+       2000-FIM. EXIT.
+       2100-PROCESSA-TRX SECTION.
+       2100-INICIO.
+           ADD 1 TO WS-QTD-TRX.
+           IF TRX-TIPO NOT = 'C' AND TRX-TIPO NOT = 'D'
+               PERFORM 9100-ERRO-TIPO THRU 9100-FIM.
+           IF TRX-VALOR = ZEROS
+               PERFORM 9200-ERRO-VALOR THRU 9200-FIM.
+           IF TRX-TIPO = 'C' AND TRX-VALOR NOT = ZEROS
+               PERFORM 2110-CREDITO THRU 2110-FIM.
+           IF TRX-TIPO = 'D' AND TRX-VALOR NOT = ZEROS
+               PERFORM 2120-DEBITO THRU 2120-FIM.
+           READ ARQ-TRX
+               AT END MOVE 'S' TO WS-FIM-TRX.
+       2100-FIM. EXIT.
+       2110-CREDITO SECTION.
+       2110-INICIO.
+           ADD TRX-VALOR TO CLI-SALDO.
+           ADD 1 TO WS-QTD-CRE.
+           ADD TRX-VALOR TO WS-TOT-CRE.
+       2110-FIM. EXIT.
+       2120-DEBITO SECTION.
+       2120-INICIO.
+           IF TRX-VALOR > CLI-SALDO
+               PERFORM 9300-ERRO-SALDO THRU 9300-FIM
+           ELSE
+               SUBTRACT TRX-VALOR FROM CLI-SALDO
+               ADD 1 TO WS-QTD-DEB
+               ADD TRX-VALOR TO WS-TOT-DEB.
+       2120-FIM. EXIT.
+       2200-CLI-SEM-TRX SECTION.
+       2200-INICIO.
+           ADD 1 TO WS-QTD-CLI.
+           MOVE CLI-ID    TO SAI-ID.
+           MOVE CLI-NOME  TO SAI-NOME.
+           MOVE CLI-SALDO TO SAI-SALDO.
+           WRITE REG-SAIDA.
+           READ ARQ-CLIENTES
+               AT END MOVE 'S' TO WS-FIM-CLI.
+       2200-FIM. EXIT.
+       2300-TRX-SEM-CLIENTE SECTION.
+       2300-INICIO.
+           MOVE TRX-CLI-ID TO WS-ID-EDIT.
+           MOVE 'ERRO: CLIENTE NAO ENCONTRADO - ID ' TO WS-ERRO-MSG.
+           DISPLAY WS-ERRO-MSG WS-ID-EDIT.
+           MOVE WS-ERRO-MSG TO REG-ERRO.
+           WRITE REG-ERRO.
+           ADD 1 TO WS-QTD-ERR.
+           READ ARQ-TRX
+               AT END MOVE 'S' TO WS-FIM-TRX.
+       2300-FIM. EXIT.
+       9100-ERRO-TIPO SECTION.
+       9100-INICIO.
+           MOVE TRX-CLI-ID TO WS-ID-EDIT.
+           MOVE 'ERRO: TIPO DE TRANSACAO INVALIDO - ID '
+               TO WS-ERRO-MSG.
+           DISPLAY WS-ERRO-MSG WS-ID-EDIT.
+           MOVE WS-ERRO-MSG TO REG-ERRO.
+           WRITE REG-ERRO.
+           ADD 1 TO WS-QTD-ERR.
+       9100-FIM. EXIT.
+       9200-ERRO-VALOR SECTION.
+       9200-INICIO.
+           MOVE TRX-CLI-ID TO WS-ID-EDIT.
+           MOVE 'ERRO: VALOR DE TRANSACAO INVALIDO - ID '
+               TO WS-ERRO-MSG.
+           DISPLAY WS-ERRO-MSG WS-ID-EDIT.
+           MOVE WS-ERRO-MSG TO REG-ERRO.
+           WRITE REG-ERRO.
+           ADD 1 TO WS-QTD-ERR.
+       9200-FIM. EXIT.
+       9300-ERRO-SALDO SECTION.
+       9300-INICIO.
+           MOVE CLI-ID TO WS-ID-EDIT.
+           MOVE 'ERRO: SALDO INSUFICIENTE - ID ' TO WS-ERRO-MSG.
+           DISPLAY WS-ERRO-MSG WS-ID-EDIT.
+           MOVE WS-ERRO-MSG TO REG-ERRO.
+           WRITE REG-ERRO.
+           ADD 1 TO WS-QTD-ERR.
+       9300-FIM. EXIT.
+       3000-ENCERRAR SECTION.
+       3000-INICIO.
+           CLOSE ARQ-CLIENTES.
+           CLOSE ARQ-TRX.
+           CLOSE ARQ-SAIDA.
+           CLOSE ARQ-ERROS.
+           DISPLAY '****************************************'.
+           DISPLAY 'ESTATISTICAS DE PROCESSAMENTO'.
+           DISPLAY '****************************************'.
+           DISPLAY 'CLIENTES PROCESSADOS.....: ' WS-QTD-CLI.
+           DISPLAY 'TRANSACOES PROCESSADAS...: ' WS-QTD-TRX.
+           DISPLAY 'CREDITOS PROCESSADOS.....: ' WS-QTD-CRE.
+           DISPLAY 'DEBITOS PROCESSADOS......: ' WS-QTD-DEB.
+           DISPLAY 'ERROS ENCONTRADOS........: ' WS-QTD-ERR.
+           DISPLAY 'FIM DO PROCESSAMENTO'.
+       3000-FIM. EXIT.
